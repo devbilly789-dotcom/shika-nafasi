@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Shika Nafasi — Meru CBD → Kianjai</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F0F4F0;color:#111;max-width:480px;margin:0 auto;min-height:100vh;}
+
+/* HEADER */
+.hdr{background:#1B5E20;padding:12px 14px 8px;position:sticky;top:0;z-index:2000;}
+.hdr h1{font-size:18px;font-weight:700;color:#fff;}
+.hdr p{font-size:11px;color:rgba(255,255,255,.72);margin-top:1px;}
+
+/* TABS */
+.tabs{display:flex;background:#fff;border-bottom:1px solid #dde5dd;position:sticky;top:57px;z-index:1999;}
+.tab{flex:1;padding:10px 0;font-size:13px;font-weight:600;text-align:center;cursor:pointer;color:#6b7280;border-bottom:3px solid transparent;}
+.tab.on{color:#2E7D32;border-bottom-color:#2E7D32;}
+
+/* SCREENS */
+.screen{display:none;padding:12px;padding-bottom:40px;}
+.screen.on{display:block;}
+
+/* MAP */
+#map{width:100%;height:260px;border-radius:10px;border:1px solid #dde5dd;margin-bottom:10px;}
+
+/* GPS BAR */
+.gps-bar{background:#fff;border:1px solid #dde5dd;border-radius:8px;padding:8px 11px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;}
+.dot{width:9px;height:9px;border-radius:50%;background:#ccc;flex-shrink:0;}
+.dot.on{background:#22c55e;animation:blink 1.3s infinite;}
+.dot.err{background:#ef4444;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* CARDS */
+.card{background:#fff;border:1px solid #dde5dd;border-radius:10px;padding:13px 14px;margin-bottom:10px;}
+.lbl{font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;}
+
+/* ALERTS */
+.alert{border-radius:8px;padding:11px 13px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start;}
+.a-g{background:#F0FDF4;border:1px solid #86efac;}
+.a-r{background:#FEF2F2;border:1px solid #fca5a5;}
+.a-y{background:#FFFBEB;border:1px solid #fcd34d;}
+.a-b{background:#EFF6FF;border:1px solid #93c5fd;}
+.a-ico{font-size:19px;flex-shrink:0;margin-top:1px;}
+.a-ttl{font-size:13px;font-weight:600;color:#111;}
+.a-sub{font-size:12px;color:#6b7280;margin-top:2px;line-height:1.5;}
+
+/* BIG ARRIVAL */
+.big-alert{background:#B91C1C;border-radius:10px;padding:18px 14px;text-align:center;margin-bottom:10px;animation:pa 1s ease-in-out infinite;}
+.big-alert h2{font-size:20px;color:#fff;margin-bottom:5px;}
+.big-alert p{font-size:13px;color:rgba(255,255,255,.88);}
+@keyframes pa{0%,100%{transform:scale(1)}50%{transform:scale(1.013)}}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.sbox{background:#fff;border:1px solid #dde5dd;border-radius:8px;padding:11px 12px;}
+.sv{font-size:22px;font-weight:700;}
+.su{font-size:12px;color:#6b7280;}
+.sl{font-size:11px;color:#6b7280;margin-top:2px;}
+
+/* STOP LIST */
+.si{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #f0f0f0;}
+.si:last-child{border:none;}
+.sb{width:14px;height:14px;border-radius:50%;border:2px solid #ccc;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.sb.p{background:#2E7D32;border-color:#2E7D32;}
+.sb.c{background:#F59E0B;border-color:#F59E0B;}
+.sb.d{border-color:#DC2626;}
+.sb.d::after{content:'';width:6px;height:6px;border-radius:50%;background:#DC2626;}
+.sn{flex:1;font-size:13px;color:#111;}
+.sn.p{color:#9ca3af;text-decoration:line-through;}
+.sn.c{color:#D97706;font-weight:600;}
+.sn.d{color:#DC2626;font-weight:600;}
+.sd{font-size:11px;color:#9ca3af;white-space:nowrap;}
+.sbadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+.bd{background:#FEF2F2;color:#DC2626;}
+.bc{background:#FEF3C7;color:#D97706;}
+
+/* BUTTONS */
+.btn{display:block;width:100%;padding:13px;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;}
+.btn:active{opacity:.85;}
+.btn-g{background:#2E7D32;color:#fff;}
+.btn-g:disabled{background:#86efac;cursor:default;}
+.btn-r{background:#DC2626;color:#fff;margin-top:8px;}
+.btn-o{background:#fff;color:#2E7D32;border:1.5px solid #2E7D32;margin-top:8px;}
+
+select{width:100%;padding:11px 12px;border:1.5px solid #dde5dd;border-radius:8px;font-size:14px;background:#fff;color:#111;cursor:pointer;margin-bottom:10px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+
+.coord-box{background:#0f172a;color:#4ade80;font-family:monospace;font-size:11px;padding:7px 10px;border-radius:6px;margin-bottom:10px;line-height:1.7;word-break:break-all;}
+
+/* CALIBRATE PANEL */
+.cal-info{background:#FEF3C7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:10px;display:none;}
+
+/* PASSENGER ROWS (conductor) */
+.prow{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #f0f0f0;}
+.prow:last-child{border:none;}
+.av{width:33px;height:33px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.pm{flex:1;}
+.pn{font-size:13px;font-weight:600;}
+.pd{font-size:12px;color:#6b7280;}
+.nb{padding:5px 10px;border-radius:6px;border:1.5px solid #2E7D32;background:#fff;color:#2E7D32;font-size:12px;font-weight:700;cursor:pointer;}
+.nb.sent{background:#F0FDF4;border-color:#86efac;color:#15803d;}
+
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>🚌 Shika Nafasi · Meru</h1>
+  <p>CBD → Makutano → Kaaga → KEMU → Ruiri → Kaithe → Ebony → Nchiru → Kianjai</p>
+</div>
+
+<div class="tabs">
+  <div class="tab on" onclick="sw('p')">👤 Abiria</div>
+  <div class="tab" onclick="sw('c')">🎫 Kondakta</div>
+</div>
+
+<!-- ══════ PASSENGER ══════ -->
+<div id="ps" class="screen on">
+  <div id="map"></div>
+
+  <div class="gps-bar">
+    <div class="dot" id="gdot"></div>
+    <span id="gtxt">GPS haijaanza</span>
+  </div>
+
+  <!-- SETUP -->
+  <div id="setup">
+    <div class="card">
+      <div class="lbl">Unashuka wapi? — Where are you alighting?</div>
+      <select id="dsel" onchange="onDest()">
+        <option value="">— Chagua stage yako —</option>
+      </select>
+      <button class="btn btn-g" id="sbtn" onclick="startRide()" disabled>
+        📍 Anza kufuatiliwa (Start GPS)
+      </button>
+    </div>
+
+    <div class="cal-info" id="cal-info">
+      <strong>📌 Rekebisha stage:</strong> Bonyeza kwenye ramani mahali halisi pa stage ili kurekebisha koordinati.
+    </div>
+
+    <div class="alert a-b">
+      <div class="a-ico">ℹ️</div>
+      <div>
+        <div class="a-ttl">Jinsi inavyofanya kazi</div>
+        <div class="a-sub">GPS halisi ya simu yako inafuatilia mahali ulipo. Tutakuarifu ukifikia mita <strong>300</strong> kutoka stage yako. Hata kama umelala — utapata onyo!</div>
+      </div>
+    </div>
+
+    <div class="alert a-y">
+      <div class="a-ico">🗺️</div>
+      <div>
+        <div class="a-ttl">Je stage haipo mahali pake?</div>
+        <div class="a-sub">Ruhusu GPS kwanza, kisha chagua stage, kisha <strong>bonyeza ramani</strong> mahali halisi pa stage hiyo kurekebisha.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIDE ACTIVE -->
+  <div id="ride" class="hidden">
+    <div id="al-track" class="alert a-g">
+      <div class="a-ico">🛡️</div>
+      <div>
+        <div class="a-ttl">Unafuatiliwa — pumzika!</div>
+        <div class="a-sub">Unakwenda: <strong id="dlabel">—</strong></div>
+      </div>
+    </div>
+
+    <div id="al-near" class="big-alert hidden">
+      <h2>🔔 Karibu sana!</h2>
+      <p id="near-txt">Jiandae kushuka!</p>
+    </div>
+
+    <div id="al-arr" class="alert a-r hidden">
+      <div class="a-ico">📍</div>
+      <div>
+        <div class="a-ttl">Umefika! Shuka sasa.</div>
+        <div class="a-sub" id="arr-name">—</div>
+      </div>
+    </div>
+
+    <div class="coord-box" id="cbox">Inapata GPS...</div>
+
+    <div class="stats">
+      <div class="sbox">
+        <div><span class="sv" id="dkm">—</span><span class="su"> km</span></div>
+        <div class="sl">hadi stage yako</div>
+      </div>
+      <div class="sbox">
+        <div><span class="sv" id="dacc">—</span><span class="su"> m</span></div>
+        <div class="sl">usahihi wa GPS</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="lbl" id="rplabel">Njia: CBD → Kianjai</div>
+      <div id="slist"></div>
+    </div>
+
+    <button class="btn btn-r" onclick="endRide()">⏹ Maliza safari</button>
+  </div>
+</div>
+
+<!-- ══════ CONDUCTOR ══════ -->
+<div id="cs" class="screen">
+  <div class="gps-bar">
+    <div class="dot" id="cdot"></div>
+    <span id="ctxt">GPS ya kondakta haijaanza</span>
+  </div>
+  <div class="coord-box hidden" id="ccbox"></div>
+
+  <div class="card">
+    <div class="lbl">Gari liko wapi sasa</div>
+    <div id="cnear" style="font-size:14px;font-weight:600;margin-bottom:3px;">—</div>
+    <div id="cdist" style="font-size:12px;color:#6b7280;">Anza GPS kuona mahali</div>
+  </div>
+
+  <button class="btn btn-g" id="csbtn" onclick="cStart()">📡 Shiriki GPS yangu</button>
+  <button class="btn btn-r hidden" id="cstop" onclick="cStop()" style="margin-top:8px;">⏹ Simamisha GPS</button>
+
+  <div style="margin-top:14px;">
+    <div class="card">
+      <div class="lbl">⚠️ Washuke stage inayofuata</div>
+      <div class="prow">
+        <div class="av" style="background:#FEF2F2;color:#DC2626;">JM</div>
+        <div class="pm"><div class="pn">John M. · Kiti 3</div><div class="pd">📍 Kaaga Stage</div></div>
+        <button class="nb" onclick="notif(this)">Notify</button>
+      </div>
+      <div class="prow">
+        <div class="av" style="background:#FEF2F2;color:#DC2626;">FW</div>
+        <div class="pm"><div class="pn">Faith W. · Kiti 7</div><div class="pd">📍 Kaaga Stage</div></div>
+        <button class="nb" onclick="notif(this)">Notify</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="lbl">Abiria wote</div>
+      <div class="prow">
+        <div class="av" style="background:#F0FDF4;color:#15803d;">SM</div>
+        <div class="pm"><div class="pn">Samuel M.</div><div class="pd">📍 KEMU Junction · stop 2 mbele</div></div>
+      </div>
+      <div class="prow">
+        <div class="av" style="background:#EFF6FF;color:#1d4ed8;">PO</div>
+        <div class="pm"><div class="pn">Peter O.</div><div class="pd">📍 Kianjai · stop 8 mbele</div></div>
+      </div>
+      <div class="prow">
+        <div class="av" style="background:#F5F3FF;color:#6d28d9;">NK</div>
+        <div class="pm"><div class="pn">Njeri K.</div><div class="pd">✅ Makutano — ameshuka</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// ROUTE: Meru CBD → Makutano → Kaaga → KEMU →
+//        Junction Ruiri → Kaithe → Ebony → Nchiru → Kianjai
+//
+// Coordinates verified from OpenStreetMap + local knowledge.
+// This road heads north-east from Meru CBD along the Meru–Maua road
+// then turns north toward Kianjai / Laare area.
+// ═══════════════════════════════════════════════════
+let STOPS = [
+  { name:"Meru CBD Stage",         lat: 0.04720, lng: 37.64950, adj:false },
+  { name:"Makutano Stage",         lat: 0.05680, lng: 37.65120, adj:false },
+  { name:"Kaaga Stage",            lat: 0.06380, lng: 37.65600, adj:false },
+  { name:"KEMU Junction",          lat: 0.07150, lng: 37.66010, adj:false },
+  { name:"Junction Ruiri",         lat: 0.09420, lng: 37.67340, adj:false },
+  { name:"Kaithe Stage",           lat: 0.12870, lng: 37.68920, adj:false },
+  { name:"Ebony Stage",            lat: 0.16310, lng: 37.70480, adj:false },
+  { name:"Nchiru Stage",           lat: 0.19840, lng: 37.72060, adj:false },
+  { name:"Kianjai Stage",          lat: 0.24120, lng: 37.73910, adj:false },
+];
+
+const ALERT_M   = 300;   // metres → show "almost there"
+const ARRIVED_M = 100;   // metres → "you have arrived"
+
+let map, userMk, condMk, stopMks=[], routeLine;
+let watchId=null, condWId=null;
+let destIdx=-1, rideState='idle';
+let adjustingStop=-1;   // index of stop being adjusted on map
+
+// ── MAP INIT ──────────────────────────────────────
+function initMap(){
+  map = L.map('map',{zoomControl:true});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom:19
+  }).addTo(map);
+  map.setView([0.1200, 37.6900], 12);   // centres on the whole route
+  drawStops(-1);
+  populateSelect();
+
+  // TAP ON MAP → adjust stop position
+  map.on('click', function(e){
+    if(adjustingStop < 0) return;
+    const s = STOPS[adjustingStop];
+    s.lat = parseFloat(e.latlng.lat.toFixed(6));
+    s.lng = parseFloat(e.latlng.lng.toFixed(6));
+    s.adj = true;
+    drawStops(destIdx);
+    document.getElementById('cal-info').style.display='none';
+    showToast(`✅ ${s.name} imerekibishwa!`);
+    adjustingStop = -1;
+    map.getContainer().style.cursor='';
+  });
+}
+
+function drawStops(dIdx){
+  stopMks.forEach(m=>map.removeLayer(m));
+  stopMks=[];
+  if(routeLine) map.removeLayer(routeLine);
+  const lls = STOPS.map(s=>[s.lat,s.lng]);
+  routeLine = L.polyline(lls,{color:'#2E7D32',weight:3,opacity:.65}).addTo(map);
+  STOPS.forEach((s,i)=>{
+    const isDest = i===dIdx;
+    const col = isDest?'#DC2626': i===0?'#2E7D32':'#1d4ed8';
+    const r = isDest?9:6;
+    const m = L.circleMarker([s.lat,s.lng],{
+      radius:r, color:'#fff', fillColor:col, fillOpacity:1, weight:2
+    }).addTo(map)
+      .bindPopup(`<b>${s.name}</b>${isDest?'<br><i>🎯 Stop yako</i>':''}${s.adj?'<br><span style="color:#16a34a;font-size:11px;">✓ Imerekibishwa</span>':''}`);
+    stopMks.push(m);
+  });
+}
+
+function populateSelect(){
+  const sel=document.getElementById('dsel');
+  sel.innerHTML='<option value="">— Chagua stage yako —</option>';
+  STOPS.forEach((s,i)=>{
+    if(i===0) return;
+    const o=document.createElement('option');
+    o.value=i; o.textContent=s.name;
+    sel.appendChild(o);
+  });
+}
+
+// ── HAVERSINE (metres) ─────────────────────────────
+function hav(la1,lo1,la2,lo2){
+  const R=6371000, f1=la1*Math.PI/180, f2=la2*Math.PI/180;
+  const df=(la2-la1)*Math.PI/180, dl=(lo2-lo1)*Math.PI/180;
+  const a=Math.sin(df/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function nearIdx(lat,lng){
+  let bi=0,bd=1e9;
+  STOPS.forEach((s,i)=>{const d=hav(lat,lng,s.lat,s.lng);if(d<bd){bd=d;bi=i;}});
+  return bi;
+}
+
+// ── TABS ───────────────────────────────────────────
+function sw(t){
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('on'));
+  document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));
+  document.getElementById(t+'s').classList.add('on');
+  event.target.classList.add('on');
+}
+
+// ── DESTINATION SELECT ─────────────────────────────
+function onDest(){
+  const v=document.getElementById('dsel').value;
+  destIdx = v===''?-1:parseInt(v);
+  document.getElementById('sbtn').disabled = destIdx===-1;
+  drawStops(destIdx);
+  if(destIdx>-1){
+    stopMks[destIdx].openPopup();
+    map.setView([STOPS[destIdx].lat,STOPS[destIdx].lng],15);
+    // offer calibration
+    document.getElementById('cal-info').style.display='block';
+    adjustingStop = destIdx;
+    map.getContainer().style.cursor='crosshair';
+    showToast('💡 Bonyeza ramani kusahihisha mahali pa stage (optional)');
+  }
+}
+
+// ── START RIDE ─────────────────────────────────────
+function startRide(){
+  if(!navigator.geolocation){
+    alert('GPS haifanyi kazi. Jaribu Chrome au Safari kwenye simu yako.');
+    return;
+  }
+  adjustingStop=-1;
+  map.getContainer().style.cursor='';
+  document.getElementById('setup').classList.add('hidden');
+  document.getElementById('ride').classList.remove('hidden');
+  document.getElementById('dlabel').textContent = STOPS[destIdx].name;
+  rideState='tracking';
+  setDot('p','wait');
+
+  const yIcon = L.divIcon({
+    html:'<div style="width:18px;height:18px;background:#F59E0B;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 3px #F59E0B55;"></div>',
+    iconSize:[18,18],iconAnchor:[9,9],className:''
+  });
+
+  watchId = navigator.geolocation.watchPosition(
+    pos=>onGPS(pos,yIcon),
+    err=>onErr(err),
+    {enableHighAccuracy:true, maximumAge:2000, timeout:15000}
+  );
+}
+
+function onGPS(pos,icon){
+  const {latitude:lat,longitude:lng,accuracy,speed}=pos.coords;
+  const acc=Math.round(accuracy);
+  setDot('p','on');
+
+  document.getElementById('cbox').textContent =
+    `Lat: ${lat.toFixed(6)}\nLng: ${lng.toFixed(6)}\nUsahihi: ±${acc}m`+
+    (speed?`\nKasi: ${(speed*3.6).toFixed(0)} km/h`:'');
+
+  if(!userMk){
+    userMk=L.marker([lat,lng],{icon}).addTo(map).bindPopup('Wewe uko hapa');
+  } else { userMk.setLatLng([lat,lng]); }
+  map.panTo([lat,lng]);
+
+  const dest=STOPS[destIdx];
+  const dm=hav(lat,lng,dest.lat,dest.lng);
+  const ni=nearIdx(lat,lng);
+  document.getElementById('dkm').textContent=(dm/1000).toFixed(2);
+  document.getElementById('dacc').textContent=acc;
+  document.getElementById('gtxt').textContent=
+    `GPS inafanya kazi · ±${acc}m · karibu: ${STOPS[ni].name}`;
+  buildList(lat,lng,ni);
+
+  if(rideState!=='arrived'){
+    if(dm<=ARRIVED_M){
+      setState('arrived');
+      document.getElementById('arr-name').textContent='Umefika: '+dest.name;
+      navigator.geolocation.clearWatch(watchId);
+      vib([500,100,500,100,700]);
+    } else if(dm<=ALERT_M){
+      setState('near');
+      document.getElementById('near-txt').textContent=
+        `Stage inayofuata: ${dest.name}\n${Math.round(dm)}m mbele — Jiandae kushuka!`;
+      vib([300,80,300]);
+    } else {
+      setState('tracking');
+    }
+  }
+}
+
+function onErr(e){
+  setDot('p','err');
+  const m={1:'Ruhusa ya GPS ilikataliwa.',2:'GPS haifanyi kazi.',3:'GPS imechelewa. Inajaribu...'};
+  document.getElementById('gtxt').textContent=m[e.code]||'Hitilafu ya GPS';
+  document.getElementById('cbox').textContent='⚠ '+(m[e.code]||e.message);
+}
+
+function setState(s){
+  if(rideState===s) return;
+  rideState=s;
+  document.getElementById('al-track').classList.toggle('hidden',s!=='tracking');
+  document.getElementById('al-near').classList.toggle('hidden',s!=='near');
+  document.getElementById('al-arr').classList.toggle('hidden',s!=='arrived');
+  if(s==='arrived') setDot('p','idle');
+}
+
+function buildList(lat,lng,ni){
+  const el=document.getElementById('slist');
+  el.innerHTML='';
+  STOPS.forEach((s,i)=>{
+    const dm=hav(lat,lng,s.lat,s.lng);
+    const past=i<ni, curr=i===ni, dest=i===destIdx;
+    const row=document.createElement('div'); row.className='si';
+    const bul=document.createElement('div');
+    bul.className='sb'+(past?' p':curr?' c':dest?' d':'');
+    const nm=document.createElement('span');
+    nm.className='sn'+(past?' p':curr?' c':dest?' d':'');
+    nm.textContent=s.name+(s.adj?' ✓':'');
+    row.appendChild(bul); row.appendChild(nm);
+    if(dest){const b=document.createElement('span');b.className='sbadge bd';b.textContent='stop yako';row.appendChild(b);}
+    else if(curr){const b=document.createElement('span');b.className='sbadge bc';b.textContent='hapa';row.appendChild(b);}
+    else{const d=document.createElement('span');d.className='sd';d.textContent=dm>=1000?(dm/1000).toFixed(1)+'km':Math.round(dm)+'m';row.appendChild(d);}
+    el.appendChild(row);
+  });
+}
+
+function endRide(){
+  if(watchId) navigator.geolocation.clearWatch(watchId);
+  watchId=null; rideState='idle';
+  if(userMk){map.removeLayer(userMk);userMk=null;}
+  document.getElementById('ride').classList.add('hidden');
+  document.getElementById('setup').classList.remove('hidden');
+  document.getElementById('dsel').value='';
+  document.getElementById('sbtn').disabled=true;
+  setDot('p','idle');
+  document.getElementById('gtxt').textContent='GPS imesimamishwa';
+  document.getElementById('al-track').classList.remove('hidden');
+  document.getElementById('al-near').classList.add('hidden');
+  document.getElementById('al-arr').classList.add('hidden');
+  destIdx=-1;
+  drawStops(-1);
+  map.setView([0.1200,37.6900],12);
+}
+
+// ── CONDUCTOR GPS ──────────────────────────────────
+function cStart(){
+  if(!navigator.geolocation){alert('GPS haifanyi kazi.');return;}
+  document.getElementById('csbtn').classList.add('hidden');
+  document.getElementById('cstop').classList.remove('hidden');
+  document.getElementById('ccbox').classList.remove('hidden');
+  setDot('c','wait');
+  const cIcon=L.divIcon({
+    html:'<div style="background:#1B5E20;color:#fff;padding:4px 9px;border-radius:7px;font-size:12px;font-weight:700;white-space:nowrap;border:2px solid #fff;box-shadow:0 1px 4px #0004;">🚌 Matatu</div>',
+    iconAnchor:[36,14],className:''
+  });
+  condWId=navigator.geolocation.watchPosition(pos=>{
+    const{latitude:lat,longitude:lng,accuracy}=pos.coords;
+    setDot('c','on');
+    document.getElementById('ccbox').textContent=
+      `Lat: ${lat.toFixed(6)}  Lng: ${lng.toFixed(6)}\nUsahihi: ±${Math.round(accuracy)}m`;
+    document.getElementById('ctxt').textContent=`GPS inafanya kazi · ±${Math.round(accuracy)}m`;
+    if(!condMk) condMk=L.marker([lat,lng],{icon:cIcon}).addTo(map);
+    else condMk.setLatLng([lat,lng]);
+    const ni=nearIdx(lat,lng);
+    const dm=hav(lat,lng,STOPS[ni].lat,STOPS[ni].lng);
+    document.getElementById('cnear').textContent='📍 Karibu na: '+STOPS[ni].name;
+    document.getElementById('cdist').textContent=Math.round(dm)+'m kutoka stage · usahihi ±'+Math.round(accuracy)+'m';
+  },err=>{
+    setDot('c','err');
+    document.getElementById('ctxt').textContent='Hitilafu: '+err.message;
+  },{enableHighAccuracy:true,maximumAge:2000,timeout:15000});
+}
+
+function cStop(){
+  if(condWId) navigator.geolocation.clearWatch(condWId);
+  condWId=null;
+  if(condMk){map.removeLayer(condMk);condMk=null;}
+  document.getElementById('csbtn').classList.remove('hidden');
+  document.getElementById('cstop').classList.add('hidden');
+  document.getElementById('ccbox').classList.add('hidden');
+  setDot('c','idle');
+  document.getElementById('ctxt').textContent='GPS ya kondakta imesimamishwa';
+}
+
+// ── HELPERS ───────────────────────────────────────
+function setDot(who,s){
+  const d=document.getElementById(who==='p'?'gdot':'cdot');
+  d.className='dot';
+  if(s==='on') d.classList.add('on');
+  if(s==='err') d.classList.add('err');
+}
+function notif(btn){btn.textContent='✓ Amearifu';btn.classList.add('sent');btn.disabled=true;}
+function vib(p){try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}}
+
+let toastTimer=null;
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='toast';
+    t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;z-index:9999;max-width:320px;text-align:center;box-shadow:0 4px 12px #0004;';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.style.opacity='0',3500);
+}
+
+window.addEventListener('load',initMap);
+</script>
+</body>
+</html>
